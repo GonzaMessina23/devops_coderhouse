@@ -1,0 +1,24 @@
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    container_name: devops-login
+
+    ports:
+      - "5000:5000"
+
+    env_file:
+      - .env
+
+    environment:
+      DATABASE_PATH: /data/app.db
+
+    volumes:
+      - login-data:/data
+
+    restart: unless-stopped
+
+volumes:
+  login-data:
