@@ -13,20 +13,36 @@ spec:
         app: devops-login
     spec:
       containers:
-        - name: web
-          image: ghcr.io/gonzamessina23/devops_coderhouse:latest
+        - name: devops-login
+          image: ghcr.io/gonzamessina23/devops-login-platform:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
+
           envFrom:
             - configMapRef:
                 name: devops-login-config
             - secretRef:
                 name: devops-login-secret
-          volumeMounts:
-            - name: login-data
-              mountPath: /data
-      volumes:
-        - name: login-data
-          persistentVolumeClaim:
-            claimName: devops-login-pvc
+
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 10
+
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "256Mi"

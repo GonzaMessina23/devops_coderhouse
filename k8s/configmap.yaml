@@ -3,4 +3,7 @@ kind: ConfigMap
 metadata:
   name: devops-login-config
 data:
-  DATABASE_PATH: "/data/app.db"
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "login_db"
+  POSTGRES_USER: "login_user"

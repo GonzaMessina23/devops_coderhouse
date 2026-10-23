@@ -14,11 +14,36 @@ services:
 
     environment:
       DATABASE_PATH: /data/app.db
+      DATABASE_URL: postgresql://login_user:${POSTGRES_PASSWORD}@db:5432/login_db
 
     volumes:
       - login-data:/data
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+    restart: unless-stopped
+
+  db:
+    image: postgres:17-alpine
+
+    environment:
+      POSTGRES_DB: login_db
+      POSTGRES_USER: login_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Definir POSTGRES_PASSWORD en .env}
+
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U login_user -d login_db"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
 
     restart: unless-stopped
 
 volumes:
   login-data:
+  postgres-data:

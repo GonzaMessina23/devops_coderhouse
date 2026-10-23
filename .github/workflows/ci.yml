@@ -71,16 +71,23 @@ jobs:
           DEMO_USERNAME: ${{ secrets.DEMO_USERNAME }}
           DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
         run: |
+          POSTGRES_PASSWORD="$(openssl rand -hex 24)"
+
           kubectl create secret generic devops-login-secret \
             --from-literal=SECRET_KEY="$FLASK_SECRET_KEY" \
             --from-literal=DEMO_USERNAME="$DEMO_USERNAME" \
-            --from-literal=DEMO_PASSWORD="$DEMO_PASSWORD"
+            --from-literal=DEMO_PASSWORD="$DEMO_PASSWORD" \
+            --from-literal=POSTGRES_PASSWORD="$POSTGRES_PASSWORD"
 
-      - name: Crear recursos Kubernetes
+      - name: Crear ConfigMap y Service Flask
         run: |
           kubectl apply -f k8s/configmap.yaml
-          kubectl apply -f k8s/pvc.yaml
           kubectl apply -f k8s/service.yaml
+
+      - name: Desplegar PostgreSQL
+        run: |
+          kubectl apply -f k8s/postgres.yaml
+          kubectl rollout status statefulset/postgres --timeout=180s
 
       - name: Configurar imagen del commit
         env:
@@ -111,5 +118,7 @@ jobs:
         if: failure()
         run: |
           kubectl get pods -o wide
+          kubectl get pvc
           kubectl describe pods -l app=devops-login
+          kubectl describe pods -l app=postgres
           kubectl get events --sort-by=.lastTimestamp
