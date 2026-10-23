@@ -1,4 +1,4 @@
-name: CI - Docker y GHCR
+name: CI/CD - Flask Docker Kubernetes
 
 on:
   push:
@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   docker-build:
-    name: Construir y publicar imagen
+    name: Construir y publicar Docker
     runs-on: ubuntu-latest
 
     steps:
@@ -24,7 +24,7 @@ jobs:
       - name: Configurar Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Construir imagen Docker
+      - name: Construir imagen
         run: docker build -t devops-login-platform:latest .
 
       - name: Iniciar sesión en GHCR
@@ -51,3 +51,65 @@ jobs:
           tags: |
             ${{ steps.image.outputs.name }}:latest
             ${{ steps.image.outputs.name }}:${{ github.sha }}
+
+  kubernetes-test:
+    name: Probar despliegue Kubernetes
+    needs: docker-build
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Descargar repositorio
+        uses: actions/checkout@v4
+
+      - name: Crear cluster Kind
+        uses: helm/kind-action@v1
+
+      - name: Crear Secret Kubernetes
+        env:
+          FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}
+          DEMO_USERNAME: ${{ secrets.DEMO_USERNAME }}
+          DEMO_PASSWORD: ${{ secrets.DEMO_PASSWORD }}
+        run: |
+          kubectl create secret generic devops-login-secret \
+            --from-literal=SECRET_KEY="$FLASK_SECRET_KEY" \
+            --from-literal=DEMO_USERNAME="$DEMO_USERNAME" \
+            --from-literal=DEMO_PASSWORD="$DEMO_PASSWORD"
+
+      - name: Crear recursos Kubernetes
+        run: |
+          kubectl apply -f k8s/configmap.yaml
+          kubectl apply -f k8s/pvc.yaml
+          kubectl apply -f k8s/service.yaml
+
+      - name: Configurar imagen del commit
+        env:
+          REPOSITORY: ${{ github.repository }}
+          COMMIT_SHA: ${{ github.sha }}
+        run: |
+          IMAGE="ghcr.io/${REPOSITORY,,}:${COMMIT_SHA}"
+          sed -i "s|image: .*|image: ${IMAGE}|" k8s/deployment.yaml
+
+      - name: Desplegar Flask
+        run: |
+          kubectl apply -f k8s/deployment.yaml
+          kubectl rollout status deployment/devops-login --timeout=180s
+
+      - name: Verificar aplicación
+        run: |
+          kubectl port-forward service/devops-login-service 8082:80 &
+          for i in $(seq 1 30); do
+            if curl --fail --silent http://localhost:8082/health; then
+              echo "Aplicación funcionando en Kubernetes"
+              exit 0
+            fi
+            sleep 2
+          done
+          exit 1
+
+      - name: Diagnóstico si falla
+        if: failure()
+        run: |
+          kubectl get pods -o wide
+          kubectl describe pods -l app=devops-login
+          kubectl get events --sort-by=.lastTimestamp
