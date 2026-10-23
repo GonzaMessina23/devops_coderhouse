@@ -1,0 +1,32 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: devops-login
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: devops-login
+  template:
+    metadata:
+      labels:
+        app: devops-login
+    spec:
+      containers:
+        - name: web
+          image: devops-login-platform:latest
+          imagePullPolicy: Never
+          ports:
+            - containerPort: 5000
+          envFrom:
+            - configMapRef:
+                name: devops-login-config
+            - secretRef:
+                name: devops-login-secret
+          volumeMounts:
+            - name: login-data
+              mountPath: /data
+      volumes:
+        - name: login-data
+          persistentVolumeClaim:
+            claimName: devops-login-pvc

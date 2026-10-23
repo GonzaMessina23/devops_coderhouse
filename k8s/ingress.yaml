@@ -1,0 +1,17 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: devops-login-ingress
+spec:
+  ingressClassName: traefik
+  rules:
+    - host: login.localhost
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: devops-login-service
+                port:
+                  number: 80
