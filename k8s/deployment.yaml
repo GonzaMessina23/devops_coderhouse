@@ -14,8 +14,8 @@ spec:
     spec:
       containers:
         - name: web
-          image: devops-login-platform:latest
-          imagePullPolicy: Never
+          image: ghcr.io/gonzamessina23/devops_coderhouse:latest
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
           envFrom:
