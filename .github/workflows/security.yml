@@ -30,3 +30,67 @@ jobs:
 
       - name: Analyze Python code
         run: bandit -r app -ll
+
+
+  dast:
+    name: DAST - OWASP ZAP
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Create temporary environment
+        run: |
+          echo "SECRET_KEY=$(openssl rand -hex 32)" >> .env
+          echo "POSTGRES_PASSWORD=$(openssl rand -hex 24)" >> .env
+          echo "DEMO_USERNAME=demo" >> .env
+          echo "DEMO_PASSWORD=$(openssl rand -hex 16)" >> .env
+
+      - name: Start Flask and PostgreSQL
+        run: docker compose up -d --build
+
+      - name: Wait for Flask
+        run: |
+          for i in $(seq 1 60); do
+            if curl --fail --silent http://localhost:5000/health; then
+              exit 0
+            fi
+            sleep 3
+          done
+          docker compose logs
+          exit 1
+
+      - name: Prepare ZAP report directory
+        run: |
+          mkdir -p zap-report
+          chmod 777 zap-report
+
+      - name: Run OWASP ZAP baseline scan
+        run: |
+          docker run --rm \
+            --network host \
+            -v "${{ github.workspace }}/zap-report:/zap/wrk/:rw" \
+            ghcr.io/zaproxy/zaproxy:stable \
+            zap-baseline.py \
+            -t http://127.0.0.1:5000 \
+            -m 2 \
+            -r zap-report.html \
+            -J zap-report.json \
+            -I
+
+      - name: Upload ZAP reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zap-security-report
+          path: zap-report/
+          if-no-files-found: warn
+
+      - name: Stop test environment
+        if: always()
+        run: docker compose down -v
+
