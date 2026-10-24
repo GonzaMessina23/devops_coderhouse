@@ -14,7 +14,7 @@ spec:
     spec:
       containers:
         - name: devops-login
-          image: ghcr.io/gonzamessina23/devops-login-platform:latest
+          image: ghcr.io/gonzamessina23/devops_coderhouse:latest
           imagePullPolicy: Always
           ports:
             - containerPort: 5000
