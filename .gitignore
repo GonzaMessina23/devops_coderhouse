@@ -16,3 +16,4 @@ instance/
 **/*.tfvars.json
 **/*_override.tf
 **/*_override.tf.json
+infrastructure/terraform-kind/cluster-generated.yaml
