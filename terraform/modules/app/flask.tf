@@ -79,6 +79,12 @@ resource "kubernetes_deployment_v1" "flask" {
     }
   }
 
+  lifecycle {
+    ignore_changes = [
+      spec[0].replicas
+    ]
+  }
+
   depends_on = [
     kubernetes_stateful_set_v1.postgres,
     kubernetes_service_v1.flask
